@@ -1,0 +1,9 @@
+Necessário um arquivo ".env" no diretório raiz do projeto com as seguintes informações:
+
+POSTGRESQL_HOST=
+POSTGRESQL_USER=
+POSTGRESQL_PASS=
+
+MYSQL_HOST=
+MYSQL_USER=
+MYSQL_PASS=
