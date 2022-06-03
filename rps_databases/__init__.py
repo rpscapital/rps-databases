@@ -5,6 +5,9 @@ import os
 import psycopg2
 import pandas as pd
 import dotenv
+import numpy as np
+import urllib.parse
+import typing
 
 dotenv.load_dotenv()
 
@@ -18,12 +21,52 @@ class Database():
         self.con = self.engine.raw_connection()
         self.cur = self.con.cursor()
 
+    def commit(self):
+        self.con.commit()
+
+    def mogrify(self, query: str, params=None):
+        return self.cur.mogrify(query, params).decode("utf-8")
+
+    def execute(self, query: str, params=None):
+        return self.cur.execute(query, params)
+
+    def insert(self, df, schema: str, table: str, commit=True):
+        return self.execute_values(df, schema, table, commit)
+
+    def upsert(self, df, schema: str, table: str, on_conflict: list, update: list, page_size=5000, commit=True):
+        return self.execute_batch(df, schema, table, on_conflict=(on_conflict, update), page_size=page_size, commit=commit)
+
+    def update(self, df: pd.DataFrame, schema: str, table: str, primary_key: list, columns: list, commit=True):
+
+        SQL = """--sql
+            UPDATE {0}.{1} {2}
+            SET {3}
+            FROM (VALUES {4}) AS df ({5})
+            WHERE {6}
+        """
+        alias = f"{schema[0]}{table[0]}"
+        values = [tuple(x) for x in df[[*primary_key, *columns]].replace({np.nan:None}).to_numpy()]
+
+        SQL = SQL.format(
+            schema, table, alias,
+            ", ".join([f"{x} = df.{x}" for x in columns]),
+            ", ".join(["%s"] * len(values)), ", ".join([*primary_key, *columns]),
+            " AND ".join([f"{alias}.{x} = df.{x}" for x in primary_key])
+        )
+
+        SQL = self.cur.mogrify(SQL, tuple(values)).decode()
+        self.cur.execute(SQL)
+
+        if not commit: return
+
+        self.commit()
+
     def execute_values(self, df, schema: str, table: str, commit=True):
         """
         Using psycopg2.extras.execute_values() to insert the dataframe
         """
         # Create a list of tupples from the dataframe values
-        df = df.where(pd.notnull(df), None)
+        df = df.replace({np.nan:None})
 
         if not len(df):
             return
@@ -38,15 +81,17 @@ class Database():
                            for x in tuples])
         self.cur.execute(query)
 
-        if commit:
-            self.commit()
+        if not commit: return
+
+        self.commit()
 
     def execute_batch(self, df, schema: str, table: str, page_size=5000, commit=True, on_conflict: tuple = None):
         """
         Using psycopg2.extras.execute_batch() to insert the dataframe
         """
         # Create a list of tupples from the dataframe values
-        df = df.where(pd.notnull(df), None)
+        df = df.replace({np.nan:None})
+
 
         if not len(df):
             return
@@ -72,11 +117,9 @@ class Database():
 
         psycopg2.extras.execute_batch(self.cur, query, tuples, page_size)
 
-        if commit:
-            self.commit()
+        if not commit: return
 
-    def commit(self):
-        self.con.commit()
+        self.commit()
 
     def register(self, data: pd.DataFrame, schema: str, table: str, index: str, commit=True):
         sql = f'SELECT * FROM {schema}.{table}'
@@ -94,29 +137,46 @@ def create_engine(engine: str, host: str, user: str, password: str, database: st
 
     if not user:
         raise Exception('Informe um user')
-    
+
     if not password:
         raise Exception('Informe um password')
-        
+
+    password = urllib.parse.quote_plus(password)
+
     engine = sqlalchemy.create_engine(
         f'{engine}://{user}:{password}@{host}/{database}', echo=False)
 
     return Database(engine)
 
+def connect(database: str = "rps", host: str = "", user: str = "", password: str = "", dialect: str = 'postgresql') -> Database:
+
+    dialects = {
+        'postgresql': 'postgresql+psycopg2',
+        'mysql': 'mysql'
+    }
+
+    assert dialect in dialects.keys(), 'Available "dialects": %s' % list(dialects.keys())
+
+    host = os.getenv(f"{dialect.upper()}_HOST", host)
+    user = os.getenv(f"{dialect.upper()}_USER", user)
+    password = os.getenv(f"{dialect.upper()}_PASS", password)
+
+    return create_engine(dialects[dialect], host, user, password, database)
 
 def cloud_connect(database: str = "rps", host: str = "", user: str = "", password: str = "") -> Database:
 
-    host = host or os.getenv("POSTGRESQL_HOST")
-    user = user or os.getenv("POSTGRESQL_USER")
-    password = password or os.getenv("POSTGRESQL_PASS")
+    host = os.getenv("POSTGRESQL_HOST", host)
+    user = os.getenv("POSTGRESQL_USER", user)
+    password = os.getenv("POSTGRESQL_PASS", password)
 
     return create_engine('postgresql+psycopg2', host, user, password, database)
 
 
 def local_connect(database: str = "", host: str = "", user: str = "", password: str = "") -> Database:
 
-    host = host or os.getenv("MYSQL_HOST")
-    user = user or os.getenv("MYSQL_USER")
-    password = password or os.getenv("MYSQL_PASS")
+    host = os.getenv("MYSQL_HOST", host)
+    user = os.getenv("MYSQL_USER", user)
+    password = os.getenv("MYSQL_PASS", password)
 
     return create_engine('mysql', host, user, password, database)
+
