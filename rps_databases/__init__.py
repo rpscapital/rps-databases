@@ -66,7 +66,8 @@ class Database():
         Using psycopg2.extras.execute_values() to insert the dataframe
         """
         # Create a list of tupples from the dataframe values
-        df = df.replace({np.nan:None})
+        nan = {np.nan:None}
+        df = df.astype(object).replace(nan).replace(nan)
 
         if not len(df):
             return
@@ -90,7 +91,8 @@ class Database():
         Using psycopg2.extras.execute_batch() to insert the dataframe
         """
         # Create a list of tupples from the dataframe values
-        df = df.replace({np.nan:None})
+        nan = {np.nan:None}
+        df = df.astype(object).replace(nan).replace(nan)
 
 
         if not len(df):
