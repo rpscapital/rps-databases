@@ -167,16 +167,18 @@ def connect(database: str = "rps", host: str = "", user: str = "", password: str
     host = os.getenv(f"{dialect.upper()}_HOST", host)
     user = os.getenv(f"{dialect.upper()}_USER", user)
     password = os.getenv(f"{dialect.upper()}_PASS", password)
+    app_name = app_name or os.getenv('APP_NAME')
 
     return create_engine(dialects[dialect], host, user, password, database, app_name)
 
-def cloud_connect(database: str = "rps", host: str = "", user: str = "", password: str = "") -> Database:
+def cloud_connect(database: str = "rps", host: str = "", user: str = "", password: str = "", app_name: str = None) -> Database:
 
     host = os.getenv("POSTGRESQL_HOST", host)
     user = os.getenv("POSTGRESQL_USER", user)
     password = os.getenv("POSTGRESQL_PASS", password)
+    app_name = app_name or os.getenv('APP_NAME')
 
-    return create_engine('postgresql+psycopg2', host, user, password, database)
+    return create_engine('postgresql+psycopg2', host, user, password, database, app_name)
 
 
 def local_connect(database: str = "", host: str = "", user: str = "", password: str = "") -> Database:
