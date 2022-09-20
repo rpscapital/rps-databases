@@ -8,6 +8,7 @@ import dotenv
 import numpy as np
 import urllib.parse
 import typing
+import sys
 
 dotenv.load_dotenv()
 
@@ -133,7 +134,7 @@ class Database():
             self.execute_batch(data, schema, table, commit=commit)
 
 
-def create_engine(engine: str, host: str, user: str, password: str, database: str):
+def create_engine(engine: str, host: str, user: str, password: str, database: str, app_name: str = None):
     if not host:
         raise Exception('Informe um host')
 
@@ -143,14 +144,18 @@ def create_engine(engine: str, host: str, user: str, password: str, database: st
     if not password:
         raise Exception('Informe um password')
 
+    application_name = ''
+    if engine == 'postgresql+psycopg2':
+        application_name = f'?application_name={app_name or sys.argv[0][-16:] or "Default"}'
+
     password = urllib.parse.quote_plus(password)
 
     engine = sqlalchemy.create_engine(
-        f'{engine}://{user}:{password}@{host}/{database}', echo=False)
+        f'{engine}://{user}:{password}@{host}/{database}{application_name}', echo=False)
 
     return Database(engine)
 
-def connect(database: str = "rps", host: str = "", user: str = "", password: str = "", dialect: str = 'postgresql') -> Database:
+def connect(database: str = "rps", host: str = "", user: str = "", password: str = "", dialect: str = 'postgresql', app_name: str = None) -> Database:
 
     dialects = {
         'postgresql': 'postgresql+psycopg2',
@@ -163,7 +168,7 @@ def connect(database: str = "rps", host: str = "", user: str = "", password: str
     user = os.getenv(f"{dialect.upper()}_USER", user)
     password = os.getenv(f"{dialect.upper()}_PASS", password)
 
-    return create_engine(dialects[dialect], host, user, password, database)
+    return create_engine(dialects[dialect], host, user, password, database, app_name)
 
 def cloud_connect(database: str = "rps", host: str = "", user: str = "", password: str = "") -> Database:
 
