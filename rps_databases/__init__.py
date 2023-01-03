@@ -50,6 +50,13 @@ class Database():
         return self.cur.execute(query, params)
 
     def fetch(self, sql, params: tuple = None):
+        """
+            db.fetch(""\"--sql
+                SELECT *
+                FROM my.table
+                WHERE mycolumn = %s
+            ""\", params=[value])
+        """
 
         params = self.__sanitize_params(params)
 
