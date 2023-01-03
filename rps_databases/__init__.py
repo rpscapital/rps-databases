@@ -13,9 +13,27 @@ import sys
 dotenv.load_dotenv()
 
 class Database():
+
     def __init__(self, engine):
         self.engine = engine
         self.connect()
+
+    def __sanitize_params(self, params):
+        if params is None:
+            return None
+
+        if not isinstance(params, (tuple, list)):
+            params = [params]
+
+        if not len(params):
+            return None
+
+        return tuple([
+            tuple(x) if
+            isinstance(x, (pd.Series, np.ndarray, list, tuple))
+            else x
+            for x in params
+        ])
 
     def connect(self):
         self.engine.connect()
@@ -30,6 +48,14 @@ class Database():
 
     def execute(self, query: str, params=None):
         return self.cur.execute(query, params)
+
+    def fetch(self, sql, params: tuple = None):
+
+        params = self.__sanitize_params(params)
+
+        sql = self.cur.mogrify(sql, params).decode()
+
+        return pd.read_sql(sql, self.engine)
 
     def insert(self, df, schema: str, table: str, commit=True):
         return self.execute_values(df, schema, table, commit)
@@ -188,4 +214,3 @@ def local_connect(database: str = "", host: str = "", user: str = "", password: 
     password = os.getenv("MYSQL_PASS", password)
 
     return create_engine('mysql', host, user, password, database)
-
