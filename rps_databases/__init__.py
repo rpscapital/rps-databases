@@ -22,7 +22,10 @@ class Database():
         if params is None:
             return None
 
-        if not isinstance(params, (tuple, list)):
+        if isinstance(params, list):
+            params = tuple(params)
+
+        if not isinstance(params, tuple):
             params = [params]
 
         if not len(params):
