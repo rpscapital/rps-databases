@@ -26,7 +26,7 @@ class Database():
             params = tuple(params)
 
         if not isinstance(params, tuple):
-            params = [params]
+            params = (params,)
 
         if not len(params):
             return None
