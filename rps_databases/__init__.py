@@ -63,7 +63,7 @@ class Database():
 
         params = self.__sanitize_params(params)
 
-        sql = self.cur.mogrify(sql, params).decode()
+        sql = self.cur.mogrify(sql, params).decode().replace("%", "%%")
 
         return pd.read_sql(sql, self.engine)
 
