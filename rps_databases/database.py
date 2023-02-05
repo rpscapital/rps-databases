@@ -11,11 +11,59 @@ import typing
 from . import common
 from .where_builder import build_where
 
+def build_agg(**kwargs):
+    ...
+
+
+class Table():
+    def __init__(self, db, schema, name: str):
+        self.schema = schema
+        self.name = name
+        self.db = db
+
+    def path(self):
+        return f'{self.schema.name}.{self.name}'
+
+    def get(self,
+        *args,
+        distinct: bool = False,
+        **kwargs
+    ):
+
+        columns = list(args)
+
+        if isinstance(columns, list):
+            columns = ", ".join(columns)
+
+        if isinstance(columns, str):
+            columns = columns
+
+        if distinct:
+            columns = "DISTINCT " + columns
+
+        return self.db.select(columns=columns, origin=self.path(), **kwargs)
+class Schema():
+    def __init__(self, db, name: str):
+        self.db = db
+        self.name = name
+
+    def __getattribute__(self, attr):
+        try:
+            return object.__getattribute__(self, attr)
+        except AttributeError:
+            return Table(db=self.db, schema=self, name=attr)
+
 class Database():
 
     def __init__(self, engine):
         self.engine = engine
         self.connect()
+
+    def __getattribute__(self, attr):
+        try:
+            return object.__getattribute__(self, attr)
+        except AttributeError:
+            return Schema(db=self, name=attr)
 
     def __sanitize_params(self, query, params):
         if params is None:
@@ -63,6 +111,10 @@ class Database():
         """
 
         params = self.__sanitize_params(sql, params)
+
+        if not hasattr(self.cur, 'mogrify'):
+            return pd.read_sql(sql, self.engine, params=params)
+
         sql = self.cur.mogrify(sql.strip(), params).decode().replace("%", "%%")
 
         return pd.read_sql(sql, self.engine)
@@ -91,7 +143,8 @@ class Database():
                 groupby = f"GROUP BY {groupby}"
 
 
-
+        if not len(columns.strip()):
+            columns = "*"
 
         SQL = f"""
             SELECT
