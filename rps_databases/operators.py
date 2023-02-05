@@ -65,28 +65,28 @@ class Between(Operator):
 class Not(Operator):
     def __init__(self, value):
         if common.is_iterable(value):
-            self.not_class = NotIn(value)
+            self.custom = NotIn(value)
         else:
-            self.not_class = NotEquals(value)
+            self.custom = NotEquals(value)
 
     def build(self):
-        return self.not_class.build()
+        return self.custom.build()
 
     def params(self):
-        return self.not_class.params()
+        return self.custom.params()
 
 class Is(Operator):
     def __init__(self, value):
         if common.is_iterable(value):
-            self.not_class = IsIn(value)
+            self.custom = IsIn(value)
         else:
-            self.not_class = Equals(value)
+            self.custom = Equals(value)
 
     def build(self):
-        return self.not_class.build()
+        return self.custom.build()
 
     def params(self):
-        return self.not_class.params()
+        return self.custom.params()
 
 class IsNull(Operator):
     def __init__(self):
