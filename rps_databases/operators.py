@@ -107,3 +107,26 @@ class NotNull(Operator):
 
     def params(self):
         return []
+
+class Column:
+
+    token = '@'
+
+    def __init__(self, value):
+        self.value = value
+
+    def build(self):
+        return f'{self.token}{self.value}'
+
+    @staticmethod
+    def destroy(query: str):
+
+        parts = query.split(' ')
+
+        token = Column.token
+
+        for i, part in enumerate(parts):
+            if part.startswith(f"'{token}"):
+                parts[i] = part.strip()[2: -1]
+
+        return " ".join(parts)
