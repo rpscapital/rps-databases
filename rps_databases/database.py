@@ -29,6 +29,18 @@ class Table():
         distinct: bool = False,
         **kwargs
     ):
+        """
+        Realiza uma consulta SELECT na tabela.
+
+        Parâmetros:
+        args: Lista de colunas a serem retornadas.
+        distinct: Boolean que indica se deve ser retornado apenas valores únicos na consulta.
+        kwargs: Condições (Ex: id=[1,2,3])
+
+        """
+        if len(args):
+            if isinstance(args[0], (list, tuple)):
+                args = args[0]
 
         columns = list(args)
 
@@ -42,6 +54,50 @@ class Table():
             columns = "DISTINCT " + columns
 
         return self.db.select(columns=columns, origin=self.path(), **kwargs)
+
+    def create(self, df: pd.DataFrame, commit: bool = True):
+        """
+        Insere o dataframe dado na tabela.
+
+        Parâmetros:
+        df (pd.DataFrame): O dataframe a ser inserido na tabela.
+        commit (bool, opcional): Se deve ou não confirmar a operação de inserção. Padrão é True.
+        """
+        self.db.insert(df, self.schema.name, self.name, commit=commit)
+
+    def update(self, df: pd.DataFrame, conflict_columns: str, update_columns: str, commit: bool = True):
+        """
+        Atualiza a tabela com os dados do dataframe dado.
+
+        Parâmetros:
+        df (pd.DataFrame): O dataframe com os dados a serem atualizados na tabela.
+        conflict_columns (str): As colunas que serão usadas para identificar conflitos na atualização.
+        update_columns (str): As colunas que serão atualizadas com os dados do dataframe.
+        commit (bool, opcional): Se deve ou não confirmar a operação de atualização. Padrão é True.
+        """
+        self.db.update(df, self.schema.name, self.name, conflict_columns, update_columns, commit)
+
+    def upsert(self, df: pd.DataFrame, conflict_columns: str, update_columns: str, commit: bool = True):
+        """
+        Faz o "upsert" (atualização ou inserção) na tabela com os dados do dataframe dado.
+
+        Parâmetros:
+        df (pd.DataFrame): O dataframe com os dados a serem inseridos ou atualizados na tabela.
+        conflict_columns (str): As colunas que serão usadas para identificar conflitos na operação "upsert".
+        update_columns (str): As colunas que serão atualizadas com os dados do dataframe, se houver conflito.
+        commit (bool, opcional): Se deve ou não confirmar a operação "upsert". Padrão é True.
+        """
+        self.db.upsert(df, self.schema.name, self.name, conflict_columns, update_columns, commit)
+
+    def delete(self, **kwargs):
+        """
+        Deleta linhas da tabela.
+
+        Parâmetros:
+        kwargs: Condições (Ex: id=[1,2,3])
+        """
+        self.db.delete(self.path(), **kwargs)
+
 class Schema():
     def __init__(self, db, name: str):
         self.db = db
@@ -118,6 +174,26 @@ class Database():
         sql = self.cur.mogrify(sql.strip(), params).decode().replace("%", "%%")
 
         return pd.read_sql(sql, self.engine)
+
+    def delete(self, origin: str, **kwargs):
+
+        where, params = build_where(**kwargs)
+
+        SQL = f"""
+            DELETE
+            FROM {origin}
+            {where}
+        """
+
+        params = self.__sanitize_params(SQL, params)
+
+        if not hasattr(self.cur, 'mogrify'):
+            raise Exception("Não implementado")
+
+        SQL = self.cur.mogrify(SQL.strip(), params).decode().replace("%", "%%")
+
+        print(SQL)
+        #self.execute(SQL)
 
     def select(self,
                columns: typing.Union[str, list],
