@@ -10,6 +10,7 @@ import sys
 import typing
 from . import common
 from .where_builder import build_where
+from .operators import Column
 
 def build_agg(**kwargs):
     ...
@@ -24,36 +25,56 @@ class Table():
     def path(self):
         return f'{self.schema.name}.{self.name}'
 
+    def __columns_to_list(self, value: any):
+
+        if value is None:
+            return []
+
+        if isinstance(value, str):
+            value = [x.strip() for x in value.split(',')]
+
+        value = list(value)
+
+        return value
+
+    def __columns_to_agg(self, agg: str, columns: any):
+
+        columns = self.__columns_to_list(columns)
+
+        if columns is None:
+            return columns
+
+        agg = [f'{agg}({column}) {column}' for column in columns]
+
+        return agg
+
     def get(self,
-        *args,
-        distinct: bool = False,
-        **kwargs
+        columns: typing.Union[str, list] = None,
+        distinct: typing.Union[str, list] = None,
+        min: typing.Union[str, list] = None,
+        max: typing.Union[str, list] = None,
+        sum: typing.Union[str, list] = None,
+        avg: typing.Union[str, list] = None,
+        **where
     ):
-        """
-        Realiza uma consulta SELECT na tabela.
 
-        Parâmetros:
-        args: Lista de colunas a serem retornadas.
-        distinct: Boolean que indica se deve ser retornado apenas valores únicos na consulta.
-        kwargs: Condições (Ex: id=[1,2,3])
+        columns = self.__columns_to_list(columns)
+        distinct = self.__columns_to_list(distinct)
 
-        """
-        if len(args):
-            if isinstance(args[0], (list, tuple)):
-                args = args[0]
+        if len(distinct):
+            columns = []
 
-        columns = list(args)
+        min = self.__columns_to_agg("min", min)
+        max = self.__columns_to_agg("max", max)
+        sum = self.__columns_to_agg("sum", sum)
+        avg = self.__columns_to_agg("avg", avg)
 
-        if isinstance(columns, list):
-            columns = ", ".join(columns)
+        columns = ", ".join([*distinct, *columns, *min, *max, *sum, * avg])
 
-        if isinstance(columns, str):
-            columns = columns
-
-        if distinct:
+        if len(distinct):
             columns = "DISTINCT " + columns
 
-        return self.db.select(columns=columns, origin=self.path(), **kwargs)
+        return self.db.select(columns=columns, origin=self.path(), **where)
 
     def create(self, df: pd.DataFrame, commit: bool = True):
         """
@@ -172,6 +193,8 @@ class Database():
             return pd.read_sql(sql, self.engine, params=params)
 
         sql = self.cur.mogrify(sql.strip(), params).decode().replace("%", "%%")
+
+        sql = Column.destroy(sql)
 
         return pd.read_sql(sql, self.engine)
 
