@@ -5,10 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Arquivo Atual",
+            "name": "Python: Test",
             "type": "python",
             "request": "launch",
             "program": "test.py",
+            "console": "internalConsole",
+            "justMyCode": true
+        },
+        {
+            "name": "Python: Where Builder",
+            "type": "python",
+            "request": "launch",
+            "program": "rps_databases/where_builder.py",
             "console": "internalConsole",
             "justMyCode": true
         }
