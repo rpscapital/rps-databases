@@ -10,7 +10,7 @@ import sys
 import typing
 from . import common
 from .where_builder import build_where
-from .operators import Column
+from .operators import Column, And, Or
 
 def build_agg(**kwargs):
     ...
@@ -55,7 +55,8 @@ class Table():
         max: typing.Union[str, list] = None,
         sum: typing.Union[str, list] = None,
         avg: typing.Union[str, list] = None,
-        **where
+        where: typing.Union[list, And, Or] = None,
+        **simple_where
     ):
 
         columns = self.__columns_to_list(columns)
@@ -74,7 +75,11 @@ class Table():
         if len(distinct):
             columns = "DISTINCT " + columns
 
-        return self.db.select(columns=columns, origin=self.path(), **where)
+        conditions = where
+        if where is None:
+            conditions = simple_where
+
+        return self.db.select(columns=columns, origin=self.path(), conditions=conditions)
 
     def create(self, df: pd.DataFrame, commit: bool = True):
         """
@@ -222,7 +227,7 @@ class Database():
                columns: typing.Union[str, list],
                origin: str,
                groupby: typing.Union[str, list] = "",
-               **kwargs):
+               conditions: typing.Union[dict, And, Or] = None):
 
         if isinstance(columns, list):
             columns = ", ".join(columns)
@@ -235,7 +240,7 @@ class Database():
         if isinstance(groupby, list):
             groupby = ", ".join(groupby)
 
-        where, params = build_where(**kwargs)
+        where, params = build_where(conditions)
 
         if isinstance(groupby, str):
             if len(groupby):
