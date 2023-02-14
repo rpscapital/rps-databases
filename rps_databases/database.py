@@ -25,7 +25,7 @@ class Table():
     def path(self):
         return f'{self.schema.name}.{self.name}'
 
-    def __columns_to_list(self, value: any):
+    def __columns_to_list(self, value: any, mount_renames: bool = True):
 
         if value is None:
             return []
@@ -35,16 +35,37 @@ class Table():
 
         value = list(value)
 
+        def renames(x):
+            if isinstance(x, tuple) and mount_renames:
+                assert len(x) == 2, 'Input esperado: ("column_name", "renamed_column")'
+
+                return f'{x[0]} "{x[1]}"'
+
+            return x
+
+        value = list(map(renames, value))
+
         return value
 
     def __columns_to_agg(self, agg: str, columns: any):
 
-        columns = self.__columns_to_list(columns)
+        columns = self.__columns_to_list(columns, mount_renames=False)
 
         if columns is None:
             return columns
 
-        agg = [f'{agg}({column}) {column}' for column in columns]
+        def agg_renames(x):
+
+            column = x
+            rename = column
+
+            if isinstance(column, tuple):
+                assert len(column) == 2, 'Input esperado: ("column_name", "renamed_column")'
+                column, rename = column
+
+            return f'{agg}({column}) {rename}'
+
+        agg = list(map(agg_renames, columns))
 
         return agg
 
@@ -70,7 +91,7 @@ class Table():
         sum = self.__columns_to_agg("sum", sum)
         avg = self.__columns_to_agg("avg", avg)
 
-        columns = ", ".join([*distinct, *columns, *min, *max, *sum, * avg])
+        columns = ", ".join([*distinct, *columns, *min, *max, *sum, *avg])
 
         if len(distinct):
             columns = "DISTINCT " + columns
