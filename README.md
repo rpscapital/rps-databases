@@ -1,19 +1,14 @@
-Para instalar com o pip
-<br>
-<code>
-python -m pip install git+https://github.com/rpscapital/rps-databases
-</code>
+# Instalação
 
-Necessário um arquivo ".env" no diretório raiz dos projetos com as seguintes informações (substituir as interrogações):
+    python -m pip install -e git+https://github.com/rpscapital/rps-databases#egg=rps-databases
 
-POSTGRESQL_HOST=?
-<br>
-POSTGRESQL_USER=?
-<br>
-POSTGRESQL_PASS=?
-<br>
-MYSQL_HOST=?
-<br>
-MYSQL_USER=?
-<br>
-MYSQL_PASS=?
+# Configuração
+
+Configure as variáveis de ambiente em um arquivo .env no diretório do projeto ou configure nas variáveis de ambiente do sistema operacional.
+
+    POSTGRESQL_HOST=
+    POSTGRESQL_USER=
+    POSTGRESQL_PASS=
+    MYSQL_HOST=
+    MYSQL_USER=
+    MYSQL_PASS=
