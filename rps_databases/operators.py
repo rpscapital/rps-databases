@@ -51,6 +51,14 @@ class Ilike(Operator):
     def __init__(self, value):
         super().__init__(value, "ilike")
 
+class NotLike(Operator):
+    def __init__(self, value):
+        super().__init__(value, "not like")
+
+class NotIlike(Operator):
+    def __init__(self, value):
+        super().__init__(value, "not ilike")
+
 class Between(Operator):
     def __init__(self, value):
         self.value = value
