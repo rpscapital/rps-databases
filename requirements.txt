@@ -1,5 +1,4 @@
 mysql-connector==2.2.9
-mysqlclient==2.0.1
 psycopg2-binary==2.9.7
 python-dotenv>=0.17.1
 SQLAlchemy==1.4.29
