@@ -1,4 +1,3 @@
-import mysql.connector
 import sqlalchemy
 import os
 import psycopg2
@@ -7,7 +6,6 @@ import numpy as np
 import urllib.parse
 import typing
 import sys
-import typing
 from . import common
 from .where_builder import build_where
 from .operators import Column, And, Or
