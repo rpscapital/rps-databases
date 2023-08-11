@@ -27,11 +27,19 @@ class GreaterOrEqualsThan(Operator):
     def __init__(self, value):
         super().__init__(value, ">=")
 
+class EqualsOrGreaterThan(Operator):
+    def __init__(self, value):
+        super().__init__(value, ">=")
+
 class LessThan(Operator):
     def __init__(self, value):
         super().__init__(value, "<")
 
 class LessOrEqualsThan(Operator):
+    def __init__(self, value):
+        super().__init__(value, "<=")
+
+class EqualsOrLessThan(Operator):
     def __init__(self, value):
         super().__init__(value, "<=")
 
