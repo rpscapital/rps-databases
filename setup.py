@@ -8,7 +8,7 @@ with open("requirements.txt", 'r') as fh:
 
 setuptools.setup(
     name="rps-databases",  # Replace with your own username
-    version="0.1.7",
+    version="0.1.8",
     author="Wilian Silva",
     author_email="wilianzilv@gmail.com",
     description="Funções para conexão com banco de dados",
