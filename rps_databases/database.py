@@ -224,7 +224,7 @@ class Database():
 
     def delete(self, origin: str, **kwargs):
 
-        where, params = build_where(**kwargs)
+        where, params = build_where(kwargs)
 
         SQL = f"""
             DELETE
