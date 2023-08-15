@@ -239,8 +239,7 @@ class Database():
 
         SQL = self.cur.mogrify(SQL.strip(), params).decode().replace("%", "%%")
 
-        print(SQL)
-        #self.execute(SQL)
+        self.execute(SQL)
 
     def select(self,
                columns: typing.Union[str, list],
