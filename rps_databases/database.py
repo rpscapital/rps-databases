@@ -67,38 +67,68 @@ class Table():
 
         return agg
 
-    def get(self,
-        columns: typing.Union[str, list] = None,
-        distinct: typing.Union[str, list] = None,
-        min: typing.Union[str, list] = None,
-        max: typing.Union[str, list] = None,
-        sum: typing.Union[str, list] = None,
-        avg: typing.Union[str, list] = None,
-        where: typing.Union[list, And, Or] = None,
-        **simple_where
+    def __format_select(
+        self,
+        columns: Union[str, list, None] = None,
+        distinct: Union[str, list, None] = None,
+        min: Union[str, list, None] = None,
+        max: Union[str, list, None] = None,
+        sum: Union[str, list, None] = None,
+        avg: Union[str, list, None] = None,
     ):
-
         columns = self.__columns_to_list(columns)
         distinct = self.__columns_to_list(distinct)
 
         if len(distinct):
             columns = []
 
-        min = self.__columns_to_agg("min", min)
-        max = self.__columns_to_agg("max", max)
-        sum = self.__columns_to_agg("sum", sum)
-        avg = self.__columns_to_agg("avg", avg)
+        _min = self.__columns_to_agg("min", min)
+        _max = self.__columns_to_agg("max", max)
+        _sum = self.__columns_to_agg("sum", sum)
+        _avg = self.__columns_to_agg("avg", avg)
 
-        columns = ", ".join([*distinct, *columns, *min, *max, *sum, *avg])
+        columns = ", ".join([*distinct, *columns, *_min, *_max, *_sum, *_avg])
 
         if len(distinct):
             columns = "DISTINCT " + columns
 
+        return columns
+
+    def __get_correct_conditions(
+        self, where: Union[list, And, Or, None] = None, **simple_where
+    ):
         conditions = where
         if where is None:
             conditions = simple_where
 
-        return self.db.select(columns=columns, origin=self.path(), conditions=conditions)
+        return conditions
+
+    def get(
+        self,
+        columns: Union[str, list, None] = None,
+        distinct: Union[str, list, None] = None,
+        min: Union[str, list, None] = None,
+        max: Union[str, list, None] = None,
+        sum: Union[str, list, None] = None,
+        avg: Union[str, list, None] = None,
+        where: Union[list, And, Or, None] = None,
+        **simple_where,
+    ):
+        columns = self.__format_select(
+            columns=columns,
+            distinct=distinct,
+            min=min,
+            max=max,
+            sum=sum,
+            avg=avg,
+        )
+
+        conditions = self.__get_correct_conditions(where, **simple_where)
+
+        return self.db.select(
+            columns=columns, origin=self.path(), conditions=conditions
+        )
+
 
     def create(self, df: pd.DataFrame, commit: bool = True):
         """
