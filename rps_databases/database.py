@@ -177,6 +177,17 @@ class Table():
             **simple_where,
         ).tolist()
 
+    def get_columns(self) -> List[str]:
+        schema_name = self.schema.name
+        table_name = self.name
+
+        df = self.db.select(
+            columns="column_name",
+            origin="information_schema.columns",
+            conditions=dict(table_schema=schema_name, table_name=table_name),
+        )
+
+        return df["column_name"].tolist()
 
     def create(self, df: pd.DataFrame, commit: bool = True):
         """
