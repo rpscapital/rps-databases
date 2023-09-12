@@ -4,32 +4,30 @@ import psycopg2
 import pandas as pd
 import numpy as np
 import urllib.parse
-import typing
+from typing import Union, List, Any
 import sys
 from . import common
 from .where_builder import build_where
 from .operators import Column, And, Or
 
-def build_agg(**kwargs):
-    ...
 
-
-class Table():
-    def __init__(self, db, schema, name: str):
+class Table:
+    def __init__(self, db: "Database", schema: "Schema", name: str):
         self.schema = schema
         self.name = name
         self.db = db
 
     def path(self):
-        return f'{self.schema.name}.{self.name}'
+        return f"{self.schema.name}.{self.name}"
 
-    def __columns_to_list(self, value: any, mount_renames: bool = True):
-
+    def __columns_to_list(
+        self, value: Union[str, list, None], mount_renames: bool = True
+    ):
         if value is None:
             return []
 
         if isinstance(value, str):
-            value = [x.strip() for x in value.split(',')]
+            value = [x.strip() for x in value.split(",")]
 
         value = list(value)
 
@@ -45,27 +43,27 @@ class Table():
 
         return value
 
-    def __columns_to_agg(self, agg: str, columns: any):
+    def __columns_to_agg(self, agg: str, columns: Any):
+        _columns = self.__columns_to_list(columns, mount_renames=False)
 
-        columns = self.__columns_to_list(columns, mount_renames=False)
-
-        if columns is None:
-            return columns
+        if _columns is None:
+            return _columns
 
         def agg_renames(x):
-
             column = x
             rename = column
 
             if isinstance(column, tuple):
-                assert len(column) == 2, 'Input esperado: ("column_name", "renamed_column")'
+                assert (
+                    len(column) == 2
+                ), 'Input esperado: ("column_name", "renamed_column")'
                 column, rename = column
 
-            return f'{agg}({column}) {rename}'
+            return f"{agg}({column}) {rename}"
 
-        agg = list(map(agg_renames, columns))
+        result = list(map(agg_renames, _columns))
 
-        return agg
+        return result
 
     def __format_select(
         self,
@@ -199,7 +197,13 @@ class Table():
         """
         self.db.insert(df, self.schema.name, self.name, commit=commit)
 
-    def update(self, df: pd.DataFrame, conflict_columns: str, update_columns: str, commit: bool = True):
+    def update(
+        self,
+        df: pd.DataFrame,
+        conflict_columns: list,
+        update_columns: list,
+        commit: bool = True,
+    ):
         """
         Atualiza a tabela com os dados do dataframe dado.
 
@@ -209,9 +213,17 @@ class Table():
         update_columns (str): As colunas que serão atualizadas com os dados do dataframe.
         commit (bool, opcional): Se deve ou não confirmar a operação de atualização. Padrão é True.
         """
-        self.db.update(df, self.schema.name, self.name, conflict_columns, update_columns, commit)
+        self.db.update(
+            df, self.schema.name, self.name, conflict_columns, update_columns, commit
+        )
 
-    def upsert(self, df: pd.DataFrame, conflict_columns: str, update_columns: str, commit: bool = True):
+    def upsert(
+        self,
+        df: pd.DataFrame,
+        conflict_columns: list,
+        update_columns: list,
+        commit: bool = True,
+    ):
         """
         Faz o "upsert" (atualização ou inserção) na tabela com os dados do dataframe dado.
 
@@ -221,7 +233,9 @@ class Table():
         update_columns (str): As colunas que serão atualizadas com os dados do dataframe, se houver conflito.
         commit (bool, opcional): Se deve ou não confirmar a operação "upsert". Padrão é True.
         """
-        self.db.upsert(df, self.schema.name, self.name, conflict_columns, update_columns, commit)
+        self.db.upsert(
+            df, self.schema.name, self.name, conflict_columns, update_columns, commit
+        )
 
     def delete(self, **kwargs):
         """
@@ -232,7 +246,8 @@ class Table():
         """
         self.db.delete(self.path(), **kwargs)
 
-class Schema():
+
+class Schema:
     def __init__(self, db, name: str):
         self.db = db
         self.name = name
@@ -243,8 +258,8 @@ class Schema():
         except AttributeError:
             return Table(db=self.db, schema=self, name=attr)
 
-class Database():
 
+class Database:
     def __init__(self, engine):
         self.engine = engine
         self.connect()
@@ -255,7 +270,7 @@ class Database():
         except AttributeError:
             return Schema(db=self, name=attr)
 
-    def __sanitize_params(self, query, params):
+    def __sanitize_params(self, params: Union[list, tuple, None]):
         if params is None:
             return None
 
@@ -268,12 +283,7 @@ class Database():
         if not len(params):
             return None
 
-        params = tuple([
-            tuple(x) if
-            common.is_iterable(x)
-            else x
-            for x in params
-        ])
+        params = tuple([tuple(x) if common.is_iterable(x) else x for x in params])
 
         return params
 
@@ -291,18 +301,18 @@ class Database():
     def execute(self, query: str, params=None):
         return self.cur.execute(query, params)
 
-    def fetch(self, sql, params: tuple = None):
+    def fetch(self, sql, params: Union[tuple, None] = None):
         """
-            db.fetch(""\"--sql
-                SELECT *
-                FROM my.table
-                WHERE mycolumn = %s
-            ""\", params=[value])
+        db.fetch(""\"--sql
+            SELECT *
+            FROM my.table
+            WHERE mycolumn = %s
+        ""\", params=[value])
         """
 
-        params = self.__sanitize_params(sql, params)
+        params = self.__sanitize_params(params)
 
-        if not hasattr(self.cur, 'mogrify'):
+        if not hasattr(self.cur, "mogrify"):
             return pd.read_sql(sql, self.engine, params=params)
 
         sql = self.cur.mogrify(sql.strip(), params).decode().replace("%", "%%")
@@ -312,7 +322,6 @@ class Database():
         return pd.read_sql(sql, self.engine)
 
     def delete(self, origin: str, **kwargs):
-
         where, params = build_where(kwargs)
 
         SQL = f"""
@@ -321,28 +330,29 @@ class Database():
             {where}
         """
 
-        params = self.__sanitize_params(SQL, params)
+        params = self.__sanitize_params(params)
 
-        if not hasattr(self.cur, 'mogrify'):
+        if not hasattr(self.cur, "mogrify"):
             raise Exception("Não implementado")
 
         SQL = self.cur.mogrify(SQL.strip(), params).decode().replace("%", "%%")
 
         self.execute(SQL)
 
-    def select(self,
-               columns: typing.Union[str, list],
-               origin: str,
-               groupby: typing.Union[str, list] = "",
-               conditions: typing.Union[dict, And, Or] = None):
-
+    def select(
+        self,
+        columns: Union[str, list],
+        origin: str,
+        groupby: Union[str, list] = "",
+        conditions: Union[dict, And, Or, None] = None,
+    ):
         if isinstance(columns, list):
             columns = ", ".join(columns)
 
-        if not len(groupby) and ('(' in columns or ')' in columns):
+        if not len(groupby) and ("(" in columns or ")" in columns):
             e_columns = enumerate(columns.split(", "))
 
-            groupby = [str(i + 1) for i, c in e_columns if '(' not in c or ')' not in c]
+            groupby = [str(i + 1) for i, c in e_columns if "(" not in c or ")" not in c]
 
         if isinstance(groupby, list):
             groupby = ", ".join(groupby)
@@ -352,7 +362,6 @@ class Database():
         if isinstance(groupby, str):
             if len(groupby):
                 groupby = f"GROUP BY {groupby}"
-
 
         if not len(columns.strip()):
             columns = "*"
@@ -367,16 +376,37 @@ class Database():
 
         return self.fetch(SQL, params)
 
-
-
     def insert(self, df, schema: str, table: str, commit=True):
         return self.execute_values(df, schema, table, commit)
 
-    def upsert(self, df, schema: str, table: str, on_conflict: list, update: list, page_size=5000, commit=True):
-        return self.execute_batch(df, schema, table, on_conflict=(on_conflict, update), page_size=page_size, commit=commit)
+    def upsert(
+        self,
+        df,
+        schema: str,
+        table: str,
+        on_conflict: list,
+        update: list,
+        page_size=5000,
+        commit=True,
+    ):
+        return self.execute_batch(
+            df,
+            schema,
+            table,
+            on_conflict=(on_conflict, update),
+            page_size=page_size,
+            commit=commit,
+        )
 
-    def update(self, df: pd.DataFrame, schema: str, table: str, primary_key: list, columns: list, commit=True):
-
+    def update(
+        self,
+        df: pd.DataFrame,
+        schema: str,
+        table: str,
+        primary_key: list,
+        columns: list,
+        commit=True,
+    ):
         SQL = """--sql
             UPDATE {0}.{1} {2}
             SET {3}
@@ -384,19 +414,26 @@ class Database():
             WHERE {6}
         """
         alias = f"{schema[0]}{table[0]}"
-        values = [tuple(x) for x in df[[*primary_key, *columns]].replace({np.nan:None}).to_numpy()]
+        values = [
+            tuple(x)
+            for x in df[[*primary_key, *columns]].replace({np.nan: None}).to_numpy()
+        ]
 
         SQL = SQL.format(
-            schema, table, alias,
+            schema,
+            table,
+            alias,
             ", ".join([f"{x} = df.{x}" for x in columns]),
-            ", ".join(["%s"] * len(values)), ", ".join([*primary_key, *columns]),
-            " AND ".join([f"{alias}.{x} = df.{x}" for x in primary_key])
+            ", ".join(["%s"] * len(values)),
+            ", ".join([*primary_key, *columns]),
+            " AND ".join([f"{alias}.{x} = df.{x}" for x in primary_key]),
         )
 
         SQL = self.cur.mogrify(SQL, tuple(values)).decode()
         self.cur.execute(SQL)
 
-        if not commit: return
+        if not commit:
+            return
 
         self.commit()
 
@@ -405,7 +442,7 @@ class Database():
         Using psycopg2.extras.execute_values() to insert the dataframe
         """
         # Create a list of tupples from the dataframe values
-        nan = {np.nan:None}
+        nan = {np.nan: None}
         df = df.astype(object).replace(nan).replace(nan)
 
         if not len(df):
@@ -413,36 +450,45 @@ class Database():
 
         tuples = [tuple(x) for x in df.to_numpy()]
         # Comma-separated dataframe columns
-        cols = ','.join(list(df.columns))
+        cols = ",".join(list(df.columns))
         vals = ",".join(["%s" for x in df.columns])
         # SQL quert to execute
-        query = f'INSERT INTO {schema}.{table}({cols}) VALUES '
-        query += ",".join([self.cur.mogrify(f'({vals})', x).decode('utf-8')
-                           for x in tuples])
+        query = f"INSERT INTO {schema}.{table}({cols}) VALUES "
+        query += ",".join(
+            [self.cur.mogrify(f"({vals})", x).decode("utf-8") for x in tuples]
+        )
         self.cur.execute(query)
 
-        if not commit: return
+        if not commit:
+            return
 
         self.commit()
 
-    def execute_batch(self, df, schema: str, table: str, page_size=5000, commit=True, on_conflict: tuple = None):
+    def execute_batch(
+        self,
+        df,
+        schema: str,
+        table: str,
+        page_size=5000,
+        commit=True,
+        on_conflict: Union[tuple, None] = None,
+    ):
         """
         Using psycopg2.extras.execute_batch() to insert the dataframe
         """
         # Create a list of tupples from the dataframe values
-        nan = {np.nan:None}
+        nan = {np.nan: None}
         df = df.astype(object).replace(nan).replace(nan)
-
 
         if not len(df):
             return
 
         tuples = [tuple(x) for x in df.to_numpy()]
         # Comma-separated dataframe columns
-        cols = ','.join(list(df.columns))
+        cols = ",".join(list(df.columns))
         vals = ",".join(["%s" for x in df.columns])
         # SQL quert to execute
-        query = f'INSERT INTO {schema}.{table}({cols}) VALUES({vals})'
+        query = f"INSERT INTO {schema}.{table}({cols}) VALUES({vals})"
 
         if on_conflict:
             keys, values = on_conflict
@@ -452,77 +498,105 @@ class Database():
                 values = [values]
             keys = ",".join(keys)
 
-            values = [f'{x} = excluded.{x}' for x in values]
+            values = [f"{x} = excluded.{x}" for x in values]
             values = ",".join(values)
-            query += f' ON CONFLICT ({keys}) DO UPDATE SET {values}'
+            query += f" ON CONFLICT ({keys}) DO UPDATE SET {values}"
 
         psycopg2.extras.execute_batch(self.cur, query, tuples, page_size)
 
-        if not commit: return
+        if not commit:
+            return
 
         self.commit()
 
-    def register(self, data: pd.DataFrame, schema: str, table: str, index: str, commit=True):
-        sql = f'SELECT * FROM {schema}.{table}'
+    def register(
+        self, data: pd.DataFrame, schema: str, table: str, index: str, commit=True
+    ):
+        sql = f"SELECT * FROM {schema}.{table}"
         registered_data = pd.read_sql(sql, self.engine, index_col=index)
 
-        data = data[~data[index].isin(
-            registered_data.index)]
+        data = data[~data[index].isin(registered_data.index)]
         if len(data) > 0:
             self.execute_batch(data, schema, table, commit=commit)
 
 
-def create_engine(engine: str, host: str, user: str, password: str, database: str, app_name: str = None):
+UNKOWN_PYTHON_APP = "Unknown Python App"
+
+
+def create_engine(
+    engine: str,
+    host: str,
+    user: str,
+    password: str,
+    database: str,
+    app_name: Union[str, None] = None,
+):
     if not host:
-        raise Exception('Informe um host')
+        raise Exception("Informe um host")
 
     if not user:
-        raise Exception('Informe um user')
+        raise Exception("Informe um user")
 
     if not password:
-        raise Exception('Informe um password')
+        raise Exception("Informe um password")
 
-    application_name = ''
-    if engine == 'postgresql+psycopg2':
-        application_name = f'?application_name={app_name or sys.argv[0][-16:] or "Default"}'
+    application_name = ""
+    if engine == "postgresql+psycopg2":
+        application_name = (
+            f"?application_name={app_name or sys.argv[0][-16:] or UNKOWN_PYTHON_APP}"
+        )
 
     password = urllib.parse.quote_plus(password)
 
     engine = sqlalchemy.create_engine(
-        f'{engine}://{user}:{password}@{host}/{database}{application_name}', echo=False)
+        f"{engine}://{user}:{password}@{host}/{database}{application_name}", echo=False
+    )
 
     return Database(engine)
 
-def connect(database: str = "rps", host: str = "", user: str = "", password: str = "", dialect: str = 'postgresql', app_name: str = None) -> Database:
 
-    dialects = {
-        'postgresql': 'postgresql+psycopg2',
-        'mysql': 'mysql'
-    }
+def connect(
+    database: str = "rps",
+    host: str = "",
+    user: str = "",
+    password: str = "",
+    dialect: str = "postgresql",
+    app_name: Union[str, None] = None,
+) -> Database:
+    dialects = {"postgresql": "postgresql+psycopg2", "mysql": "mysql"}
 
-    assert dialect in dialects.keys(), 'Available "dialects": %s' % list(dialects.keys())
+    assert dialect in dialects.keys(), 'Available "dialects": %s' % list(
+        dialects.keys()
+    )
 
     host = os.getenv(f"{dialect.upper()}_HOST", host)
     user = os.getenv(f"{dialect.upper()}_USER", user)
     password = os.getenv(f"{dialect.upper()}_PASS", password)
-    app_name = app_name or os.getenv('APP_NAME')
 
     return create_engine(dialects[dialect], host, user, password, database, app_name)
 
-def cloud_connect(database: str = "rps", host: str = "", user: str = "", password: str = "", app_name: str = None) -> Database:
 
+def cloud_connect(
+    database: str = "rps",
+    host: str = "",
+    user: str = "",
+    password: str = "",
+    app_name: Union[str, None] = None,
+) -> Database:
     host = os.getenv("POSTGRESQL_HOST", host)
     user = os.getenv("POSTGRESQL_USER", user)
     password = os.getenv("POSTGRESQL_PASS", password)
-    app_name = app_name or os.getenv('APP_NAME')
 
-    return create_engine('postgresql+psycopg2', host, user, password, database, app_name)
+    return create_engine(
+        "postgresql+psycopg2", host, user, password, database, app_name
+    )
 
 
-def local_connect(database: str = "", host: str = "", user: str = "", password: str = "") -> Database:
-
+def local_connect(
+    database: str = "", host: str = "", user: str = "", password: str = ""
+) -> Database:
     host = os.getenv("MYSQL_HOST", host)
     user = os.getenv("MYSQL_USER", user)
     password = os.getenv("MYSQL_PASS", password)
 
-    return create_engine('mysql', host, user, password, database)
+    return create_engine("mysql", host, user, password, database)
