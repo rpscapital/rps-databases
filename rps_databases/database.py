@@ -129,6 +129,54 @@ class Table():
             columns=columns, origin=self.path(), conditions=conditions
         )
 
+    def get_series(
+        self,
+        column: Union[str, None] = None,
+        distinct: Union[str, None] = None,
+        min: Union[str, None] = None,
+        max: Union[str, None] = None,
+        sum: Union[str, None] = None,
+        avg: Union[str, None] = None,
+        where: Union[list, And, Or, None] = None,
+        **simple_where,
+    ) -> pd.Series:
+        columns = self.__format_select(
+            columns=column,
+            distinct=distinct,
+            min=min,
+            max=max,
+            sum=sum,
+            avg=avg,
+        )
+
+        conditions = self.__get_correct_conditions(where, **simple_where)
+
+        df = self.db.select(columns=columns, origin=self.path(), conditions=conditions)
+
+        return df[df.columns[0]]
+
+    def get_list(
+        self,
+        column: Union[str, None] = None,
+        distinct: Union[str, None] = None,
+        min: Union[str, None] = None,
+        max: Union[str, None] = None,
+        sum: Union[str, None] = None,
+        avg: Union[str, None] = None,
+        where: Union[list, And, Or, None] = None,
+        **simple_where,
+    ):
+        return self.get_series(
+            column=column,
+            distinct=distinct,
+            min=min,
+            max=max,
+            sum=sum,
+            avg=avg,
+            where=where,
+            **simple_where,
+        ).tolist()
+
 
     def create(self, df: pd.DataFrame, commit: bool = True):
         """
