@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 requirements = """
-mysqlclient>=2.2.0
+mysqlclient==2.1.0
 psycopg2-binary==2.9.7
 python-dotenv>=0.17.1
 SQLAlchemy==1.4.29
