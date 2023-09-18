@@ -9,6 +9,7 @@ import sys
 from . import common
 from .where_builder import build_where
 from .operators import Column, And, Or
+from psycopg2 import extras
 
 
 class Table:
@@ -502,7 +503,7 @@ class Database:
             values = ",".join(values)
             query += f" ON CONFLICT ({keys}) DO UPDATE SET {values}"
 
-        psycopg2.extras.execute_batch(self.cur, query, tuples, page_size)
+        extras.execute_batch(self.cur, query, tuples, page_size)
 
         if not commit:
             return
