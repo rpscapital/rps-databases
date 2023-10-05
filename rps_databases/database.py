@@ -4,7 +4,7 @@ import psycopg2
 import pandas as pd
 import numpy as np
 import urllib.parse
-from typing import Union, List, Any
+from typing import Dict, Union, List, Any, Optional
 import sys
 from . import common
 from .where_builder import build_where
@@ -13,6 +13,9 @@ from psycopg2 import extras
 
 
 class Table:
+    order_sql: Optional[str] = None
+    limit_sql: Optional[str] = None
+
     def __init__(self, db: "Database", schema: "Schema", name: str):
         self.schema = schema
         self.name = name
@@ -125,7 +128,7 @@ class Table:
         conditions = self.__get_correct_conditions(where, **simple_where)
 
         return self.db.select(
-            columns=columns, origin=self.path(), conditions=conditions
+            columns=columns, origin=self.path(), conditions=conditions, table=self
         )
 
     def get_series(
@@ -150,7 +153,9 @@ class Table:
 
         conditions = self.__get_correct_conditions(where, **simple_where)
 
-        df = self.db.select(columns=columns, origin=self.path(), conditions=conditions)
+        df = self.db.select(
+            columns=columns, origin=self.path(), conditions=conditions, table=self
+        )
 
         return df[df.columns[0]]
 
@@ -184,6 +189,7 @@ class Table:
             columns="column_name",
             origin="information_schema.columns",
             conditions=dict(table_schema=schema_name, table_name=table_name),
+            table=self,
         )
 
         return df["column_name"].tolist()
@@ -246,6 +252,47 @@ class Table:
         kwargs: Condições (Ex: id=[1,2,3])
         """
         self.db.delete(self.path(), **kwargs)
+
+    def limit(self, limit: int):
+        self.limit_sql = f"LIMIT {limit}"
+
+        return self
+
+    def paginate(self, page: int, page_size: int):
+        page = max([0, (page - 1)])
+
+        self.limit_sql = f"LIMIT {page_size} OFFSET {page * page_size}"
+
+        return self
+
+    def order_by(
+        self, columns: Union[List[str], str], ascending: Union[List[bool], bool] = []
+    ):
+        if isinstance(columns, str):
+            columns = [columns]
+
+        if isinstance(ascending, bool):
+            ascending = [ascending]
+
+        assert (
+            len(columns) == len(ascending) or len(ascending) == 0
+        ), "O número de colunas e ordens devem ser iguais"
+
+        if len(ascending) == 0:
+            ascending = [True] * len(columns)
+
+        ascending_sql = ["ASC" if x else "DESC" for x in ascending]
+
+        instructions_sql = [
+            f"{column} {order}" for column, order in zip(columns, ascending_sql)
+        ]
+
+        if self.limit_sql is not None:
+            print("Warning: 'order' before 'limit' is a best practice")
+
+        self.order_sql = f"ORDER BY {', '.join(instructions_sql)}"
+
+        return self
 
 
 class Schema:
@@ -345,7 +392,8 @@ class Database:
         columns: Union[str, list],
         origin: str,
         groupby: Union[str, list] = "",
-        conditions: Union[dict, And, Or, None] = None,
+        conditions: Optional[Union[dict, list]] = None,
+        table: Optional[Table] = None,
     ):
         if isinstance(columns, list):
             columns = ", ".join(columns)
@@ -374,6 +422,13 @@ class Database:
             {where}
             {groupby}
         """
+
+        if table is not None:
+            if table.order_sql is not None:
+                SQL += f"\n{table.order_sql}"
+
+            if table.limit_sql is not None:
+                SQL += f"\n{table.limit_sql}"
 
         return self.fetch(SQL, params)
 
