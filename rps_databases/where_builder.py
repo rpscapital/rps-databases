@@ -51,15 +51,18 @@ def build_conditions(conditions: typing.Union[list, dict], condition="and"):
 
                 operator = Is(operator).custom
 
-            value = operator.params()[0]
+            operator_params = operator.params()
 
-            if is_iterable(value):
-                if len(value) == 0:
-                    local_clauses.append("1 = 0")
-                    continue
+            if len(operator_params):
+                value = operator_params[0]
+
+                if is_iterable(value):
+                    if len(value) == 0:
+                        local_clauses.append("1 = 0")
+                        continue
 
             local_clauses.append(f"{key} {operator.build()}")
-            params.extend(operator.params())
+            params.extend(operator_params)
 
         local_clause = f" {condition} ".join(local_clauses)
 
