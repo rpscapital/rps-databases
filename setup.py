@@ -12,7 +12,7 @@ pandas==1.3.5"""
 
 setuptools.setup(
     name="rps-databases",  # Replace with your own username
-    version="0.2.5",
+    version="0.2.6",
     author="Wilian Silva",
     author_email="wilianzilv@gmail.com",
     description="Funções para conexão com banco de dados",
