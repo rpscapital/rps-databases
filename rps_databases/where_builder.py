@@ -1,5 +1,6 @@
 import pandas as pd
 import typing
+from rps_databases.common import is_iterable
 from rps_databases.operators import Operator, Is, And, Or
 
 
@@ -49,6 +50,13 @@ def build_conditions(conditions: typing.Union[list, dict], condition="and"):
                     operator = operator.get(key)
 
                 operator = Is(operator).custom
+
+            value = operator.params()[0]
+
+            if is_iterable(value):
+                if len(value) == 0:
+                    local_clauses.append("1 = 0")
+                    continue
 
             local_clauses.append(f"{key} {operator.build()}")
             params.extend(operator.params())
