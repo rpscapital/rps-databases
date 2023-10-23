@@ -310,7 +310,9 @@ class Schema:
 class Database:
     def __init__(self, engine):
         self.engine = engine
-        self.connect()
+        self.engine.connect()
+        self.con = self.engine.raw_connection()
+        self.cur = self.con.cursor()
 
     def __getattribute__(self, attr):
         try:
@@ -335,15 +337,8 @@ class Database:
 
         return params
 
-    def connect(self, new_instance=False):
-        if new_instance:
-            return Database(self.engine)
-
-        self.engine.connect()
-        self.con = self.engine.raw_connection()
-        self.cur = self.con.cursor()
-
-        return self
+    def connect(self):
+        return Database(self.engine)
 
     def commit(self):
         self.con.commit()
