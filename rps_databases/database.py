@@ -343,6 +343,8 @@ class Database:
         self.con = self.engine.raw_connection()
         self.cur = self.con.cursor()
 
+        return self
+
     def commit(self):
         self.con.commit()
 
