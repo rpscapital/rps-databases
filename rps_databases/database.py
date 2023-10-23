@@ -335,7 +335,10 @@ class Database:
 
         return params
 
-    def connect(self):
+    def connect(self, new_instance=False):
+        if new_instance:
+            return Database(self.engine)
+
         self.engine.connect()
         self.con = self.engine.raw_connection()
         self.cur = self.con.cursor()
