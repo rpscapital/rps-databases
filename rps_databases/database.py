@@ -1,3 +1,4 @@
+from hmac import new
 import sqlalchemy
 import os
 import psycopg2
@@ -310,9 +311,8 @@ class Schema:
 class Database:
     def __init__(self, engine):
         self.engine = engine
-        self.engine.connect()
-        self.con = self.engine.raw_connection()
-        self.cur = self.con.cursor()
+
+        self.connect()
 
     def __getattribute__(self, attr):
         try:
@@ -338,6 +338,13 @@ class Database:
         return params
 
     def connect(self):
+        self.engine.connect()
+
+        self.con = self.engine.raw_connection()
+        self.cur = self.con.cursor()
+        return self
+
+    def safe_connect(self):
         return Database(self.engine)
 
     def commit(self):
