@@ -11,6 +11,7 @@ from . import common
 from .where_builder import build_where
 from .operators import Column, And, Or
 from psycopg2 import extras
+import re
 
 
 class Table:
@@ -372,7 +373,7 @@ class Database:
 
         sql = self.cur.mogrify(sql.strip(), params).decode().replace("%", "%%")
 
-        sql = Column.destroy(sql)
+        sql = re.sub(r"'@(\w+)'", r'"\1"', sql)
 
         return pd.read_sql(sql, self.engine)
 
