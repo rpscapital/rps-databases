@@ -8,7 +8,7 @@ mysqlclient==2.1.0
 psycopg2-binary==2.9.7
 python-dotenv>=0.17.1
 SQLAlchemy==1.4.29
-pandas==1.3.5"""
+pandas>=1.3.5"""
 
 setuptools.setup(
     name="rps-databases",  # Replace with your own username
